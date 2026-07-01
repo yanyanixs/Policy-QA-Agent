@@ -9,6 +9,10 @@ RAG 查询全流程诊断/追踪脚本
   python scripts/trace_query.py "新能源补贴有哪些政策"
   python scripts/trace_query.py "财政部2024年的税收政策" --authority 财政部 --year 2024
   python scripts/trace_query.py "上海AI产业政策" --top_k 5 --verbose
+
+输出 RAGAS 四要素:
+  python scripts/trace_query.py "新能源补贴" -o ragas_input.json -g "国家针对新能源汽车的补贴政策包括..."
+  python scripts/trace_query.py "新能源补贴" -o ragas_input.json --ground-truth-file gt.txt
 """
 
 import os
@@ -100,6 +104,8 @@ async def trace_query(
     dry_run: bool = False,
     use_mmr: bool = True,
     mmr_lambda: float = 0.7,
+    ground_truths: list[str] | None = None,
+    output_path: str | None = None,
 ):
     """
     逐步追踪一次 RAG 查询的完整流程。
@@ -108,7 +114,14 @@ async def trace_query(
       Step 1: 系统提示词 + LLM 初次决策（可能改写 query 并决定调用工具）
       Step 2-6: 用 LLM 改写后的 query 跑完整 RAG 管线
       Step 7: 检索结果发给 LLM → 生成最终回答
+
+    输出 RAGAS 四要素（question / answer / contexts / ground_truths）：
+      如果指定了 --output / -o，会将四要素保存为 JSON 文件。
     """
+
+    # 用于收集 RAGAS 四要素
+    ragas_contexts: list[str] = []
+    ragas_answer: str = ""
 
     # ══════════════════════════════════════════════════════════
     print_header("RAG 查询全流程追踪（生产环境等价）")
@@ -221,8 +234,10 @@ async def trace_query(
                 trace = get_trace()
                 if trace and hasattr(response, "content"):
                     trace.set_answer(response.content or "")
+                    ragas_answer = response.content or ""
                 print_header("追踪完成")
                 _print_trace_summary()
+                _output_ragas(query, ragas_answer, ragas_contexts, ground_truths, output_path)
                 return
 
             search_query = search_tc["args"].get("query", query)
@@ -237,8 +252,10 @@ async def trace_query(
             trace = get_trace()
             if trace and hasattr(response, "content"):
                 trace.set_answer(response.content or "")
+                ragas_answer = response.content or ""
             print_header("追踪完成")
             _print_trace_summary()
+            _output_ragas(query, ragas_answer, ragas_contexts, ground_truths, output_path)
             return
 
     # ══════════════════════════════════════════════════════════
@@ -282,6 +299,7 @@ async def trace_query(
 
     if not raw_results:
         print("\n  [WARN] 未检索到任何结果！")
+        _output_ragas(query, ragas_answer, ragas_contexts, ground_truths, output_path)
         return
 
     print(f"\n    原始 chunks（按向量相似度排序，共 {len(raw_results)}）:")
@@ -327,6 +345,9 @@ async def trace_query(
         else:
             print(f"    [{i}] policy_id={pid} chunk={ci} | {title}")
 
+    # ── 收集 contexts（RAGAS 四要素之一）──────────────
+    ragas_contexts = [doc.page_content for doc in results]
+
     # ── Step 5: 去重 + 格式化 ──────────────────────────
     print_step(5, "去重与格式化（_format_chunk_results）")
 
@@ -368,6 +389,7 @@ async def trace_query(
         trace = get_trace()
         if trace:
             trace.set_answer(final_response.content or "")
+        ragas_answer = final_response.content or ""
 
     # ══════════════════════════════════════════════════════════
     print_header("追踪完成")
@@ -390,6 +412,53 @@ async def trace_query(
                 print(f"    | ... [共 {len(td['answer'])} 字符，已截断]")
     print(f"{SEP}")
 
+    # ── 输出 RAGAS 四要素 ──────────────────────────────
+    _output_ragas(query, ragas_answer, ragas_contexts, ground_truths, output_path)
+
+
+def _output_ragas(
+    question: str,
+    answer: str,
+    contexts: list[str],
+    ground_truths: list[str] | None,
+    output_path: str | None,
+):
+    """输出/保存 RAGAS 评估所需的四要素"""
+    gt = ground_truths or []
+
+    # 始终打印四要素摘要
+    print(f"\n{'─' * 60}")
+    print(f"  RAGAS 四要素摘要")
+    print(f"{'─' * 60}")
+    print(f"  question:      {question[:100]}{'...' if len(question) > 100 else ''}")
+    print(f"  answer:        {len(answer)} 字符")
+    print(f"  contexts:      {len(contexts)} 条")
+    print(f"  ground_truths: {len(gt)} 条")
+    if gt:
+        for i, g in enumerate(gt):
+            print(f"    [{i}] {g[:80]}{'...' if len(g) > 80 else ''}")
+    print(f"{'─' * 60}")
+
+    ragas_data = {
+        "question": question,
+        "answer": answer,
+        "contexts": contexts,
+        "ground_truths": gt,
+    }
+
+    if output_path:
+        out_path = os.path.abspath(output_path)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(ragas_data, f, ensure_ascii=False, indent=2)
+        print(f"\n  ✅ RAGAS 四要素已保存到: {out_path}")
+        print(f"     可直接用于 evaluate.py:")
+        print(f"     cd ../RAGAS")
+        print(f"     python evaluate.py --question \"{question[:60]}...\" --answer-file ... --context-files \"{out_path}\" ...")
+    else:
+        # 没有指定输出路径时，也打印 JSON 到控制台
+        print(f"\n  📋 RAGAS 四要素 JSON（使用 -o 保存到文件）:")
+        print(json.dumps(ragas_data, ensure_ascii=False, indent=2))
+
 
 # ─── 入口 ───────────────────────────────────────────────────
 
@@ -404,6 +473,10 @@ async def main():
   python scripts/trace_query.py "财政部税收政策" --authority 财政部
   python scripts/trace_query.py "上海AI产业" --location 上海市 --top_k 5
   python scripts/trace_query.py "新能源" --dry-run
+
+输出 RAGAS 四要素:
+  python scripts/trace_query.py "新能源补贴" -o ragas_input.json -g "国家补贴政策..."
+  python scripts/trace_query.py "新能源补贴" -o ragas_input.json --ground-truth-file gt.txt
         """,
     )
     parser.add_argument("query", help="查询文本")
@@ -419,7 +492,22 @@ async def main():
     parser.add_argument("--no-mmr", action="store_true", help="禁用 MMR 多样性，仅用 Reranker 相关性排序")
     parser.add_argument("--mmr-lambda", type=float, default=0.7,
                         help="MMR λ 参数，0-1 之间，越大越偏重相关性 (默认 0.7)")
+    # RAGAS 四要素相关
+    parser.add_argument("--output", "-o", default=None, help="保存 RAGAS 四要素 JSON 到文件")
+    parser.add_argument("--ground-truth", "-g", nargs="+", default=None,
+                        help="人工标注的真实答案（一条或多条，用于 RAGAS 评估）")
+    parser.add_argument("--ground-truth-file", nargs="+", default=None,
+                        help="从文件读取真实答案")
     args = parser.parse_args()
+
+    # 解析 ground_truths
+    ground_truths = []
+    if args.ground_truth:
+        ground_truths.extend(args.ground_truth)
+    if args.ground_truth_file:
+        for gf in args.ground_truth_file:
+            with open(gf, "r", encoding="utf-8") as f:
+                ground_truths.append(f.read())
 
     await trace_query(
         args.query,
@@ -434,6 +522,8 @@ async def main():
         dry_run=args.dry_run,
         use_mmr=not args.no_mmr,
         mmr_lambda=args.mmr_lambda,
+        ground_truths=ground_truths if ground_truths else None,
+        output_path=args.output,
     )
 
 

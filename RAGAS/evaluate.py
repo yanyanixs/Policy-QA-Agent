@@ -330,6 +330,9 @@ def main():
       --ground_truth "国家针对新能源汽车..." \\
       --contexts ctx1.txt ctx2.txt
 
+  # 直接使用 trace_query.py 的输出:
+  python evaluate.py --from-trace ../backend/ragas_input.json -v
+
   python evaluate.py \\
       --question "北京数据政策" \\
       --answer "..." \\
@@ -349,6 +352,7 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="显示详细信息")
     parser.add_argument("--detailed", "-d", action="store_true", help="输出综合评分的详细分解")
     parser.add_argument("--output", "-o", help="保存结果为 JSON 文件")
+    parser.add_argument("--from-trace", help="从 trace_query.py 输出的 JSON 文件读取四要素")
     parser.add_argument("--interactive", "-i", action="store_true", help="交互式模式：手动输入 question/answer/contexts/ground_truths")
     parser.add_argument("--list-metrics", action="store_true", help="列出所有可用指标及其默认权重")
 
@@ -367,6 +371,23 @@ def main():
         question, answer, contexts, ground_truths = _interactive_input()
         args.question = question
         args.verbose = args.verbose if args.verbose else True  # 交互式默认 verbose
+    elif args.from_trace:
+        # 从 trace_query.py 的输出 JSON 读取四要素
+        trace_data = json.loads(_read_file(args.from_trace))
+        question = trace_data["question"]
+        answer = trace_data["answer"]
+        contexts = trace_data["contexts"]
+        ground_truths = trace_data["ground_truths"]
+        if not answer:
+            parser.error("trace JSON 中 answer 为空（可能是 --dry-run 模式生成的）")
+        if not contexts:
+            parser.error("trace JSON 中 contexts 为空")
+        print(f"从 {args.from_trace} 加载四要素:")
+        print(f"  question: {question[:80]}{'...' if len(question) > 80 else ''}")
+        print(f"  answer: {len(answer)} 字符")
+        print(f"  contexts: {len(contexts)} 条")
+        print(f"  ground_truths: {len(ground_truths)} 条")
+        print()
     else:
         # 解析四要素
         if not args.question:
