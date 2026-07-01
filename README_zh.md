@@ -1,12 +1,10 @@
-<h1 align="center"> AI-CHATKIT </h1>
+<h1 align="center"> 政策问答智能体 </h1>
 <p align="center">
   <a href="./README.md"  target="_Self">English</a> |
   <strong style="background-color: green;">中文</strong>
 </p>
 
-AI-CHATKIT 是一个 AI Agent 全栈聊天工具，基于 LangGraph、FastAPI、NextJS、ChromaDB 等组件搭建。
-
-这个工程可以作为一个模板，帮助你使用 LangGraph 框架快速搭建 AI 智能体聊天应用，支持 RAG 来增强智能体的知识库问答能力。
+政策问答智能体是一个面向政府政策领域的 AI 智能问答系统，基于 LangGraph、FastAPI、NextJS、ChromaDB 等组件搭建，支持 RAG 增强检索、多智能体协作和流式对话。
 
 <img src="./pictures/chat_img.png" width="700"/>
 

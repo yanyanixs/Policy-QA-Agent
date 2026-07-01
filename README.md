@@ -1,13 +1,11 @@
-<h1 align="center"> AI-CHATKIT </h1>
+<h1 align="center"> Policy Q&A Agent </h1>
 <p align="center">
   <strong style="background-color: green;">English</strong>
   |
   <a href="./README_zh.md" target="_Self">中文</a>
 </p>
 
-AI-CHATKIT is a full-stack AI agent chat tool built with LangGraph, FastAPI, NextJS, ChromaDB, and other components.
-
-This project serves as a template to help you quickly build AI agent chat applications using the LangGraph framework, with RAG support to enhance knowledge base Q&A capabilities.
+Policy Q&A Agent is an AI-powered intelligent Q&A system for government policies, built with LangGraph, FastAPI, NextJS, ChromaDB, and supporting RAG-enhanced retrieval, multi-agent collaboration, and streaming dialogue.
 
 <img src="./pictures/chat_img.png" width="700"/>
 
