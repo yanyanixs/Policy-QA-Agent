@@ -10,14 +10,14 @@ import asyncio
 from typing import Optional
 
 # 挂载 ai-chatkit 后端路径
-_BACKEND_APP = os.path.join(os.path.dirname(__file__), "..", "..", "ai-chatkit", "backend", "app")
+_BACKEND_APP = os.path.join(os.path.dirname(__file__), "..", "..", "backend", "app")
 _BACKEND_APP = os.path.abspath(_BACKEND_APP)
 if _BACKEND_APP not in sys.path:
     sys.path.insert(0, _BACKEND_APP)
 
 # 加载 .env
 from dotenv import load_dotenv
-_ENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "ai-chatkit", "backend", ".env")
+_ENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "backend", ".env")
 load_dotenv(os.path.abspath(_ENV_PATH))
 
 from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage

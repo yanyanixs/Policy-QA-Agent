@@ -9,7 +9,7 @@ import os
 import numpy as np
 
 # 确保后端路径已挂载
-_BACKEND_APP = os.path.join(os.path.dirname(__file__), "..", "..", "ai-chatkit", "backend", "app")
+_BACKEND_APP = os.path.join(os.path.dirname(__file__), "..", "..", "backend", "app")
 _BACKEND_APP = os.path.abspath(_BACKEND_APP)
 if _BACKEND_APP not in sys.path:
     sys.path.insert(0, _BACKEND_APP)

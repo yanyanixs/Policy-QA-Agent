@@ -105,8 +105,11 @@ async def trace_query(
     use_mmr: bool = True,
     mmr_lambda: float = 0.7,
     ground_truths: list[str] | None = None,
-    output_path: str | None = None,
+    output_path: str | None = None,  # None = 使用默认路径 ragas_output.json
 ):
+    # 默认保存路径
+    if output_path is None:
+        output_path = os.path.join(_SCRIPT_DIR, "ragas_output.json")
     """
     逐步追踪一次 RAG 查询的完整流程。
 
